@@ -1,0 +1,7 @@
+{
+    "code-runner.executorMap": {
+    	// 加上-u（unbuffered）参数后会强制其标准输出也同标准错误一样不通过缓存直接打印到屏幕
+        "python":"C:\\Users\\jiawei.wu\\Workspace\\chatbot-server\\.venv\\Scripts\\python.exe -u $fullFileName"
+    },
+    // "code-runner.runInTerminal": true,
+}
