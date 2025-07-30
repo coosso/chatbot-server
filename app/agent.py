@@ -1,15 +1,11 @@
 from langchain_community.chat_models import ChatTongyi
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-# from langchain.memory import ConversationBufferMemory
-# from langchain.chains import ConversationChain
-# from typing import TypedDict, Annotated, List, Any, Dict
-# from langgraph.graph.message import add_messages
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
-# import asyncio
-
-# # Memory
-# memory = ConversationBufferMemory()
-
+import asyncio
 
 sessions = {
     "session_1": [
@@ -18,19 +14,40 @@ sessions = {
     ]
 }
 
-
-async def achat(message: str, session_id: str):
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in sessions:
-        sessions[session_id] = []
-    sessions[session_id].append(HumanMessage(content=message))
-    llm = ChatTongyi(model="qwen-plus")
-    response = llm.astream(sessions[session_id])
-    full_content = ""
+        sessions[session_id] = ChatMessageHistory()
+    return sessions[session_id]
+
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "你是一个擅长{ability}的助手。回答不超过20个字",
+        ),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}"),
+    ]
+)
+
+model = ChatTongyi(model="qwen-plus")
+
+runable = prompt | model
+
+with_message_history = RunnableWithMessageHistory(
+  runable,
+  get_session_history,
+  input_messages_key="input",
+  history_messages_key="history",
+)
+
+async def achat(message: str, session_id: str): 
+    response = with_message_history.astream(
+      {"ability":"胡编乱造", "input":message},
+      config={"configurable": {"session_id": session_id}},
+    )
     async for chunk in response:
-        content = chunk.content
-        full_content += content
-        if content == "":
-            sessions[session_id].append(AIMessage(content=full_content))
+        content = chunk.content      
         yield content
 
 

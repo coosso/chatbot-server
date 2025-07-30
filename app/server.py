@@ -1,4 +1,3 @@
-from cgitb import reset
 from fastapi import FastAPI, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
