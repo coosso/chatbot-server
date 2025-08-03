@@ -4,6 +4,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, StateGraph, add_messages
+import asyncio
 
 def get_agent():
     prompt = ChatPromptTemplate.from_messages(
@@ -16,7 +17,7 @@ def get_agent():
         ]
     )
 
-    chat_model = ChatTongyi(model="qwen-plus", streaming=True)
+    chat_model = ChatTongyi(model="qwen-plus")
 
     chain = prompt | chat_model
 
@@ -30,15 +31,11 @@ def get_agent():
 
 
     def call_model(state: State):
-        content = ""
-        for chunk in chain.stream(state):
-            # print(chunk)
-            content += chunk.content
-        return {"messages": AIMessage(content=content)}
+        return {"messages": [chain.invoke(state)]}
+      
 
-
-    builder.add_node("model", call_model)
-    builder.add_edge(START, "model")
+    builder.add_node("model_node", call_model)
+    builder.add_edge(START, "model_node")
 
     memory = MemorySaver()
 
@@ -46,7 +43,7 @@ def get_agent():
 
     return agent
 
-if __name__ == "__main__":
+async def main():
     agent = get_agent()
     config = {"configurable": {"thread_id": "session_1"}}
 
@@ -54,7 +51,12 @@ if __name__ == "__main__":
         "messages": [HumanMessage(content="你是谁")],
         "end": "---ENXXXD---",
     }
+    for event in agent.stream(input_dict, config, stream_mode="messages"):
+       content = event[0].content
+       if content == "":
+          break
+       print(event[0].content)
+       
 
-    res = agent.stream(input_dict, config)
-    for chunk in res:
-        print(chunk.content)  
+if __name__ == "__main__":
+   asyncio.run(main())

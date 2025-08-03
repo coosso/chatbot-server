@@ -8,20 +8,21 @@ agent = get_agent()
 
 @app.post("/chat")
 async def chat_stream(message: str):
+    config = {"configurable": {"thread_id": "session_1"}}
+
     input_dict = {
         "messages": [HumanMessage(content=message)],
         "end": "---ENXXXD---",
     }
-    config = {"configurable": {"thread_id": "session_1"}}
+    
     def event_generator():
-        try:
-            for chunk in agent.stream(input_dict, config):
-                print(chunk)
-        except Exception as e:
-            yield f"err: {e}"
-
+        for event in agent.stream(input_dict, config, stream_mode="messages"):
+          content = event[0].content
+          if content == "":
+             break
+          yield content
     return StreamingResponse(event_generator())
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, port=8000)
+    uvicorn.run("fast:app", port=8000, reload=True)
